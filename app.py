@@ -55,9 +55,10 @@ st.markdown("""
 st.title("LSTM Model for Stock Price Prediction 📈")
 st.markdown("This application predicts stock prices using a standalone LSTM deep learning model.")
 
-# --- Sidebar for user inputs (now with full control) ---
+# --- Sidebar for user inputs (now with a selectbox for tickers) ---
 st.sidebar.title("Stock Settings")
-selected_ticker = st.sidebar.text_input("Enter Stock Ticker", "MSFT").upper()
+stock_tickers = ["AAPL", "GOOG", "MSFT", "TSLA", "AMZN", "NVDA", "JPM", "V", "PG"]
+selected_ticker = st.sidebar.selectbox("Select Stock Ticker", stock_tickers)
 start_date = st.sidebar.date_input("Start Date", datetime.date.today() - datetime.timedelta(days=365 * 4))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 look_back = st.sidebar.slider("Lookback Window:", 10, 120, 60)
@@ -160,7 +161,7 @@ if st.sidebar.button("Run Prediction"):
             last_look_back_data = np.reshape(last_look_back_data, (1, look_back, scaled_data.shape[1]))
             
             # Make a single prediction
-            next_period_prediction_scaled = lstm_model.predict(last_look_back_data)[0][0]
+            next_period_prediction_scaled = lstm_model.predict(last_look_back_data, verbose=0)[0][0]
             
             # Inverse transform the prediction
             temp_array_future_prediction = np.zeros((1, len(available_columns)))
@@ -170,7 +171,7 @@ if st.sidebar.button("Run Prediction"):
             future_predictions.append(next_period_prediction_unscaled)
             
             # Update the look_back data to include the new prediction
-            new_row_scaled = temp_array_future_prediction
+            new_row_scaled = np.array(temp_array_future_prediction[0])
             last_look_back_data = np.vstack([last_look_back_data[0][1:], new_row_scaled])
 
         # Create a dataframe for future predictions
@@ -180,12 +181,9 @@ if st.sidebar.button("Run Prediction"):
             "Predicted_Close": future_predictions
         })
         st.dataframe(prediction_df, use_container_width=True)
-
-        # Plot the future prediction on the graph
-        combined_df = df.copy()
-        combined_df['Predicted_Close'] = np.nan
-        combined_df.loc[combined_df.index[-1] + 1:combined_df.index[-1] + future_days, 'Predicted_Close'] = future_predictions
         
+        
+        # Plot the future prediction on the graph
         fig_future = go.Figure()
         fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
         fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name='Predicted Future', line=dict(dash='dash', color='orange')))
