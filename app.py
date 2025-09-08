@@ -147,8 +147,41 @@ if st.sidebar.button("Run Prediction"):
         ax.legend()
         st.pyplot(fig)
 
-        # --- Historical Price Graph ---
-        st.subheader(f"Historical Stock Prices for {selected_ticker}")
+        # --- Future Price Prediction ---
+        st.subheader(f"Future Price Prediction for the Next {future_days} Days")
+        
+        future_predictions = []
+        last_look_back_data = scaled_data[-look_back:]
+        
+        # Create test data for prediction
+        test_data = scaled_data[-look_back:]
+        
+        for _ in range(future_days):
+            # Reshape the data for prediction
+            X_test = np.reshape(test_data, (1, look_back, 1))
+            
+            # Make prediction
+            pred_price = lstm_model.predict(X_test, verbose=0)[0][0]
+            future_predictions.append(pred_price)
+            
+            # Update test data for next prediction
+            test_data = np.append(test_data[1:], pred_price).reshape(-1, 1)
+
+        # Inverse transform the predictions to get actual prices
+        future_predictions = np.array(future_predictions).reshape(-1, 1)
+        future_predictions = scaler.inverse_transform(future_predictions).flatten()
+
+        # Create a dataframe for future predictions
+        last_date = df['Date'].iloc[-1]
+        future_dates = [last_date + datetime.timedelta(days=i) for i in range(1, future_days + 1)]
+        prediction_df = pd.DataFrame({
+            "Date": future_dates,
+            "Predicted_Close": future_predictions
+        })
+        st.dataframe(prediction_df, use_container_width=True)
+
+        # --- Historical and Future Price Prediction Graph ---
+        st.subheader(f"{selected_ticker} Prices Prediction")
         
         # Create a single clean plot
         fig = go.Figure()
@@ -162,9 +195,23 @@ if st.sidebar.button("Run Prediction"):
             line=dict(color='#1f77b4', width=2)
         ))
 
-        # Update the layout
+        # Add the predicted future trace
+        # Connect the last actual price to the first predicted price
+        combined_dates = [df['Date'].iloc[-1]] + prediction_df['Date'].tolist()
+        combined_prices = [df['Close'].iloc[-1]] + prediction_df['Predicted_Close'].tolist()
+        
+        fig.add_trace(go.Scatter(
+            x=combined_dates,
+            y=combined_prices,
+            mode='lines+markers',
+            name='Predicted Price',
+            line=dict(color='#ff7f0e', width=2, dash='dot'),
+            marker=dict(size=4)
+        ))
+
+        # Update the layout to match the requested image
         fig.update_layout(
-            title=f"Historical Stock Prices for {selected_ticker}",
+            title=f"{selected_ticker} Prices Prediction",
             xaxis_title="Date",
             yaxis_title="Price",
             template="plotly_dark",
