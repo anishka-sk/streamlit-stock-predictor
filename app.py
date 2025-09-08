@@ -93,6 +93,11 @@ if st.sidebar.button("Run Prediction"):
             st.warning(f"Available columns: {df.columns.tolist()}")
             st.stop()
 
+        # Check if there is enough data for the lookback period
+        if len(df) < look_back:
+            st.error(f"Error: Not enough data for the lookback period of {look_back} days. Please select an earlier start date or a smaller lookback window.")
+            st.stop()
+        
         data = df[available_columns].values
 
         # --- Display Stock Data in a Table ---
@@ -109,12 +114,20 @@ if st.sidebar.button("Run Prediction"):
         
         def create_dataset(dataset, look_back):
             X, y = [], []
+            if len(dataset) < look_back:
+                return np.array(X), np.array(y)
             for i in range(look_back, len(dataset)):
                 X.append(dataset[i-look_back:i, :])
                 y.append(dataset[i, available_columns.index('Close')])
             return np.array(X), np.array(y)
 
         X_train, y_train = create_dataset(train_data, look_back)
+        
+        # Check if X_train is empty after creation
+        if len(X_train) == 0:
+            st.error("Error: Not enough data to create training samples. Please adjust your 'Start Date' or 'Lookback Window'.")
+            st.stop()
+
         X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], X_train.shape[2]))
 
         # --- Building and Training the LSTM Model ---
