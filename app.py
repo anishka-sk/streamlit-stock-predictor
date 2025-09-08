@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import datetime
-import plotly.graph_objs as go
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
@@ -151,8 +150,6 @@ if st.sidebar.button("Run Prediction"):
         st.subheader(f"Future Price Prediction for the Next {future_days} Days")
         
         future_predictions = []
-        last_look_back_data = scaled_data[-look_back:]
-        
         # Create test data for prediction
         test_data = scaled_data[-look_back:]
         
@@ -178,68 +175,17 @@ if st.sidebar.button("Run Prediction"):
             "Date": future_dates,
             "Predicted_Close": future_predictions
         })
+        
+        # Display the predictions in a clean table
         st.dataframe(prediction_df, use_container_width=True)
-
-        # --- Historical and Future Price Prediction Graph ---
-        st.subheader(f"{selected_ticker} Prices Prediction")
         
-        # Create a single clean plot
-        fig = go.Figure()
-
-        # Add the historical trace
-        fig.add_trace(go.Scatter(
-            x=df['Date'],
-            y=df['Close'],
-            mode='lines',
-            name='Actual Price',
-            line=dict(color='#1f77b4', width=2)
-        ))
-
-        # Add the predicted future trace
-        # Connect the last actual price to the first predicted price
-        combined_dates = [df['Date'].iloc[-1]] + prediction_df['Date'].tolist()
-        combined_prices = [df['Close'].iloc[-1]] + prediction_df['Predicted_Close'].tolist()
-        
-        fig.add_trace(go.Scatter(
-            x=combined_dates,
-            y=combined_prices,
-            mode='lines+markers',
-            name='Predicted Price',
-            line=dict(color='#ff7f0e', width=2, dash='dot'),
-            marker=dict(size=4)
-        ))
-
-        # Update the layout to match the requested image
-        fig.update_layout(
-            title=f"{selected_ticker} Prices Prediction",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            template="plotly_dark",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            margin=dict(l=40, r=40, t=60, b=40),
-            hovermode='x unified',
-            showlegend=True
-        )
-
-        # Customize x-axis to show dates properly
-        fig.update_xaxes(
-            tickformat="%Y-%m-%d",
-            tickangle=45,
-            showgrid=True
-        )
-        
-        # Customize y-axis
-        fig.update_yaxes(
-            showgrid=True
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+        # Show current and predicted prices
+        st.subheader("Price Summary")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Current Price", f"${df['Close'].iloc[-1]:.2f}")
+        with col2:
+            st.metric("Predicted Price", f"${future_predictions[-1]:.2f}")
 
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
