@@ -181,23 +181,15 @@ if st.sidebar.button("Run Prediction"):
         })
         st.dataframe(prediction_df, use_container_width=True)
 
-        # --- Historical Price Graph ---
-        st.subheader("Historical Stock Price")
-        fig_hist = go.Figure()
-        fig_hist.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
-        fig_hist.update_layout(title=f"{selected_ticker} Historical Close Price", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-        # --- Future Prediction Graph ---
+        # --- Historical and Future Price Prediction Graph ---
         st.subheader("Historical and Future Price Prediction")
         
-        # Use pandas concat to create a combined dataframe for a single continuous plot
-        combined_df = pd.concat([df[['Date', 'Close']].rename(columns={'Close': 'Value'}), 
-                                 prediction_df[['Date', 'Predicted_Close']].rename(columns={'Predicted_Close': 'Value'})], 
-                                ignore_index=True)
-
         fig_future = go.Figure()
+        
+        # Plot historical data
         fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
+
+        # Plot future predictions
         fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name='Predicted Future', line=dict(dash='dash', color='orange')))
 
         fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
