@@ -8,6 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
+import matplotlib.pyplot as plt
 
 # Set the page to a dark theme and wide layout
 st.set_page_config(layout="wide", initial_sidebar_state="expanded")
@@ -94,6 +95,10 @@ if st.sidebar.button("Run Prediction"):
 
         data = df[available_columns].values
 
+        # --- Display Stock Data in a Table ---
+        st.subheader(f"Stock Data for {selected_ticker}")
+        st.dataframe(df[['Date'] + available_columns], use_container_width=True)
+        
         # Scaling data
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaled_data = scaler.fit_transform(data)
@@ -101,8 +106,7 @@ if st.sidebar.button("Run Prediction"):
         # Splitting data
         training_data_len = int(len(scaled_data) * 0.8)
         train_data = scaled_data[0:training_data_len, :]
-        test_data = scaled_data[training_data_len - look_back:, :]
-
+        
         def create_dataset(dataset, look_back):
             X, y = [], []
             for i in range(look_back, len(dataset)):
@@ -111,10 +115,7 @@ if st.sidebar.button("Run Prediction"):
             return np.array(X), np.array(y)
 
         X_train, y_train = create_dataset(train_data, look_back)
-        X_test, y_test = create_dataset(test_data, look_back)
-
         X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], X_train.shape[2]))
-        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], X_test.shape[2]))
 
         # --- Building and Training the LSTM Model ---
         st.subheader("Building and Training the LSTM Model")
@@ -129,27 +130,18 @@ if st.sidebar.button("Run Prediction"):
             lstm_model.compile(optimizer='adam', loss='mean_squared_error')
             early_stopping = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
             history = lstm_model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, callbacks=[early_stopping], verbose=0)
+            
+        # --- Training Loss Graph ---
+        st.subheader("Model Training History")
+        fig, ax = plt.subplots()
+        ax.plot(history.history['loss'], label='Training Loss')
+        ax.plot(history.history['val_loss'], label='Validation Loss')
+        ax.set_title('Training and Validation Loss')
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('Loss')
+        ax.legend()
+        st.pyplot(fig)
 
-        # Make predictions on test data
-        lstm_predictions = lstm_model.predict(X_test)
-        
-        # Inverse Scaling for Test Predictions
-        temp_array_y_test = np.zeros((len(y_test), len(available_columns)))
-        temp_array_y_test[:, available_columns.index('Close')] = y_test
-        y_test_unscaled = scaler.inverse_transform(temp_array_y_test)[:, available_columns.index('Close')]
-
-        temp_array_predictions = np.zeros((len(lstm_predictions), len(available_columns)))
-        temp_array_predictions[:, available_columns.index('Close')] = lstm_predictions[:, 0]
-        lstm_predictions_unscaled = scaler.inverse_transform(temp_array_predictions)[:, available_columns.index('Close')]
-
-        # --- Test Data Prediction Visualization ---
-        st.subheader("Test Data Prediction Visualization")
-        trace_actual = go.Scatter(x=df['Date'][training_data_len + look_back:], y=y_test_unscaled, mode='lines', name='Actual Price')
-        trace_predicted = go.Scatter(x=df['Date'][training_data_len + look_back:], y=lstm_predictions_unscaled, mode='lines', name='Predicted Price')
-        fig = go.Figure(data=[trace_actual, trace_predicted])
-        fig.update_layout(title=f"{selected_ticker} Test Set Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
-        
         # --- Future Price Prediction ---
         st.subheader("Next Predictions")
         
@@ -157,20 +149,14 @@ if st.sidebar.button("Run Prediction"):
         last_look_back_data = scaled_data[-look_back:]
 
         for _ in range(future_days):
-            # Reshape the data for prediction
             last_look_back_data = np.reshape(last_look_back_data, (1, look_back, scaled_data.shape[1]))
-            
-            # Make a single prediction
             next_period_prediction_scaled = lstm_model.predict(last_look_back_data, verbose=0)[0][0]
-            
-            # Inverse transform the prediction
             temp_array_future_prediction = np.zeros((1, len(available_columns)))
             temp_array_future_prediction[:, available_columns.index('Close')] = next_period_prediction_scaled
             next_period_prediction_unscaled = scaler.inverse_transform(temp_array_future_prediction)[0][available_columns.index('Close')]
             
             future_predictions.append(next_period_prediction_unscaled)
             
-            # Update the look_back data to include the new prediction
             new_row_scaled = np.array(temp_array_future_prediction[0])
             last_look_back_data = np.vstack([last_look_back_data[0][1:], new_row_scaled])
 
@@ -181,15 +167,21 @@ if st.sidebar.button("Run Prediction"):
             "Predicted_Close": future_predictions
         })
         st.dataframe(prediction_df, use_container_width=True)
-        
-        
-        # Plot the future prediction on the graph
+
+        # --- Historical Price Graph ---
+        st.subheader("Historical Stock Price")
+        fig_hist = go.Figure()
+        fig_hist.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
+        fig_hist.update_layout(title=f"{selected_ticker} Historical Close Price", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+        # --- Future Prediction Graph ---
+        st.subheader("Historical and Future Price Prediction")
         fig_future = go.Figure()
         fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
         fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name='Predicted Future', line=dict(dash='dash', color='orange')))
-        
         fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
         st.plotly_chart(fig_future, use_container_width=True)
-        
+
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
