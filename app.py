@@ -116,9 +116,9 @@ if st.sidebar.button("Run Prediction"):
             X, y = [], []
             if len(dataset) < look_back:
                 return np.array(X), np.array(y)
-            for i in range(look_back, len(dataset)):
+            for i in range(look_back, len(dataset) + 1):
                 X.append(dataset[i-look_back:i, :])
-                y.append(dataset[i, available_columns.index('Close')])
+                y.append(dataset[i-1, available_columns.index('Close')])
             return np.array(X), np.array(y)
 
         X_train, y_train = create_dataset(train_data, look_back)
@@ -184,14 +184,14 @@ if st.sidebar.button("Run Prediction"):
         # --- Historical and Future Price Prediction Graph ---
         st.subheader("Historical and Future Price Prediction")
         
+        # Combine historical and predicted data for a single plot
+        historical_and_future_df = pd.concat([df[['Date', 'Close']], prediction_df.rename(columns={'Predicted_Close': 'Close'})], ignore_index=True)
+        
         fig_future = go.Figure()
         
-        # Plot historical data
         fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
-
-        # Plot future predictions
         fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name='Predicted Future', line=dict(dash='dash', color='orange')))
-
+        
         fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
         st.plotly_chart(fig_future, use_container_width=True)
 
