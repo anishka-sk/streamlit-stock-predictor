@@ -190,7 +190,7 @@ if st.sidebar.button("Run Prediction"):
         fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
         
         # Future Prediction Trace
-        fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name=f'Predicted Future ({future_days} Days)', line=dict(dash='dash', color='orange')))
+        fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines', name=f'Predicted Future ({future_days} Days)', line=dict(dash='dash', color='orange')))
         
         fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
         st.plotly_chart(fig_future, use_container_width=True)
