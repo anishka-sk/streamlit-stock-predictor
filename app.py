@@ -166,7 +166,9 @@ if st.sidebar.button("Run Prediction"):
             next_period_prediction_scaled = lstm_model.predict(last_look_back_data, verbose=0)[0][0]
             temp_array_future_prediction = np.zeros((1, len(available_columns)))
             temp_array_future_prediction[:, available_columns.index('Close')] = next_period_prediction_scaled
-            next_period_prediction_unscaled = scaler.inverse_transform(temp_array_future_prediction)[0][available_columns.index('Close')]
+            
+            # CRITICAL FIX: Ensure the value is a float before appending.
+            next_period_prediction_unscaled = float(scaler.inverse_transform(temp_array_future_prediction)[0][available_columns.index('Close')])
             
             future_predictions.append(next_period_prediction_unscaled)
             
