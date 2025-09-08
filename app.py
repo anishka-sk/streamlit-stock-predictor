@@ -179,13 +179,24 @@ if st.sidebar.button("Run Prediction"):
         # Display the predictions in a clean table
         st.dataframe(prediction_df, use_container_width=True)
         
-        # Show current and predicted prices
+        # Show current and predicted prices - FIXED THE ERROR HERE
         st.subheader("Price Summary")
         col1, col2 = st.columns(2)
+        
+        # Get the current price safely
+        current_price = df['Close'].iloc[-1]
+        if pd.isna(current_price) or current_price is None:
+            current_price = 0
+        
+        # Get the predicted price safely
+        predicted_price = future_predictions[-1] if len(future_predictions) > 0 else 0
+        if pd.isna(predicted_price) or predicted_price is None:
+            predicted_price = 0
+        
         with col1:
-            st.metric("Current Price", f"${df['Close'].iloc[-1]:.2f}")
+            st.metric("Current Price", f"${current_price:.2f}")
         with col2:
-            st.metric("Predicted Price", f"${future_predictions[-1]:.2f}")
+            st.metric("Predicted Price", f"${predicted_price:.2f}")
 
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
