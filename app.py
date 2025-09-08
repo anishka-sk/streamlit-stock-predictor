@@ -148,5 +148,3 @@ if st.sidebar.button("Run Prediction"):
 
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
-This video shows how to build a stock prediction web app in Python using Streamlit, Yahoo Finance, and Facebook Prophet. [Build A Stock Prediction Web App In Python](https://www.youtube.com/watch?v=0E_31WqVzCY)
-http://googleusercontent.com/youtube_content/8
