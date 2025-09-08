@@ -42,7 +42,17 @@ if st.sidebar.button("Run Prediction"):
 
     if df is not None and not df.empty:
         df = df.reset_index()
-        data = df[['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']].values
+        
+        # --- FIX: Check for required columns before accessing them ---
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+        available_columns = [col for col in required_columns if col in df.columns]
+        
+        if not available_columns or len(available_columns) < 5:
+            st.error("Error: The fetched data is incomplete. Missing required columns for prediction.")
+            st.warning(f"Available columns: {df.columns.tolist()}")
+            st.stop()
+
+        data = df[available_columns].values
 
         # Scaling data
         scaler = MinMaxScaler(feature_range=(0, 1))
@@ -57,7 +67,7 @@ if st.sidebar.button("Run Prediction"):
             X, y = [], []
             for i in range(look_back, len(dataset)):
                 X.append(dataset[i-look_back:i, :])
-                y.append(dataset[i, 3])
+                y.append(dataset[i, available_columns.index('Close')]) # Dynamically get the index of 'Close'
             return np.array(X), np.array(y)
 
         X_train, y_train = create_dataset(train_data, look_back)
@@ -85,8 +95,15 @@ if st.sidebar.button("Run Prediction"):
         
         # --- Inverse Scaling and Evaluation ---
         st.subheader("Model Evaluation")
-        y_test_unscaled = scaler.inverse_transform(np.c_[np.zeros((len(y_test), 5)), y_test])[:, -1]
-        lstm_predictions_unscaled = scaler.inverse_transform(np.c_[np.zeros((len(lstm_predictions), 5)), lstm_predictions])[:, -1]
+        
+        # Dynamically create the temporary arrays for inverse transform
+        temp_array_y_test = np.zeros((len(y_test), len(available_columns)))
+        temp_array_y_test[:, available_columns.index('Close')] = y_test
+        y_test_unscaled = scaler.inverse_transform(temp_array_y_test)[:, available_columns.index('Close')]
+
+        temp_array_predictions = np.zeros((len(lstm_predictions), len(available_columns)))
+        temp_array_predictions[:, available_columns.index('Close')] = lstm_predictions[:, 0]
+        lstm_predictions_unscaled = scaler.inverse_transform(temp_array_predictions)[:, available_columns.index('Close')]
 
         lstm_rmse = np.sqrt(mean_squared_error(y_test_unscaled, lstm_predictions_unscaled))
         lstm_r2 = r2_score(y_test_unscaled, lstm_predictions_unscaled)
@@ -123,7 +140,9 @@ if st.sidebar.button("Run Prediction"):
         next_period_prediction_scaled = lstm_model.predict(last_look_back_data)[0][0]
         
         # Inverse transform the prediction
-        next_period_prediction_unscaled = scaler.inverse_transform(np.c_[np.zeros(5), next_period_prediction_scaled])[0][-1]
+        temp_array_future_prediction = np.zeros((1, len(available_columns)))
+        temp_array_future_prediction[:, available_columns.index('Close')] = next_period_prediction_scaled
+        next_period_prediction_unscaled = scaler.inverse_transform(temp_array_future_prediction)[0][available_columns.index('Close')]
         
         # Display the prediction in a table
         future_date = df['Date'].iloc[-1] + datetime.timedelta(days=1)
