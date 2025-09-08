@@ -108,8 +108,6 @@ if st.sidebar.button("Run Prediction"):
         
         def create_dataset(dataset, look_back):
             X, y = [], []
-            if len(dataset) < look_back:
-                return np.array(X), np.array(y)
             for i in range(look_back, len(dataset)):
                 X.append(dataset[i-look_back:i, 0])
                 y.append(dataset[i, 0])
@@ -154,22 +152,28 @@ if st.sidebar.button("Run Prediction"):
         
         future_predictions = []
         last_look_back_data = scaled_data[-look_back:]
-
+        
+        # Create test data for prediction
+        test_data = scaled_data[-look_back:]
+        
         for _ in range(future_days):
-            last_look_back_data_reshaped = np.reshape(last_look_back_data, (1, look_back, 1))
-            next_period_prediction_scaled = lstm_model.predict(last_look_back_data_reshaped, verbose=0)[0][0]
+            # Reshape the data for prediction
+            X_test = np.reshape(test_data, (1, look_back, 1))
             
-            future_predictions.append(next_period_prediction_scaled)
+            # Make prediction
+            pred_price = lstm_model.predict(X_test, verbose=0)[0][0]
+            future_predictions.append(pred_price)
             
-            # Update the lookback data for next prediction
-            last_look_back_data = np.append(last_look_back_data[1:], next_period_prediction_scaled)
+            # Update test data for next prediction
+            test_data = np.append(test_data[1:], pred_price).reshape(-1, 1)
 
-        # Inverse transform the predictions
+        # Inverse transform the predictions to get actual prices
         future_predictions = np.array(future_predictions).reshape(-1, 1)
         future_predictions = scaler.inverse_transform(future_predictions).flatten()
 
         # Create a dataframe for future predictions
-        future_dates = [df['Date'].iloc[-1] + datetime.timedelta(days=i) for i in range(1, future_days + 1)]
+        last_date = df['Date'].iloc[-1]
+        future_dates = [last_date + datetime.timedelta(days=i) for i in range(1, future_days + 1)]
         prediction_df = pd.DataFrame({
             "Date": future_dates,
             "Predicted_Close": future_predictions
@@ -192,12 +196,17 @@ if st.sidebar.button("Run Prediction"):
         ))
 
         # Add the predicted future trace
+        # Connect the last actual price to the first predicted price
+        combined_dates = [df['Date'].iloc[-1]] + prediction_df['Date'].tolist()
+        combined_prices = [df['Close'].iloc[-1]] + prediction_df['Predicted_Close'].tolist()
+        
         fig.add_trace(go.Scatter(
-            x=prediction_df['Date'],
-            y=prediction_df['Predicted_Close'],
-            mode='lines',
+            x=combined_dates,
+            y=combined_prices,
+            mode='lines+markers',
             name='Predicted Price',
-            line=dict(color='#ff7f0e', width=2, dash='dot')
+            line=dict(color='#ff7f0e', width=2, dash='dot'),
+            marker=dict(size=4)
         ))
 
         # Update the layout to match the requested image
