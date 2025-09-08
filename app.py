@@ -105,6 +105,7 @@ if st.sidebar.button("Run Prediction"):
         # Splitting data
         training_data_len = int(len(scaled_data) * 0.8)
         train_data = scaled_data[0:training_data_len, :]
+        test_data = scaled_data[training_data_len - look_back:, :]
         
         def create_dataset(dataset, look_back):
             X, y = [], []
@@ -147,6 +148,59 @@ if st.sidebar.button("Run Prediction"):
         ax.legend()
         st.pyplot(fig)
 
+        # --- Actual vs. Predicted Prices on Validation Data ---
+        st.subheader("Actual vs. Predicted Prices on Validation Data")
+
+        # Create validation dataset
+        X_test, y_test = create_dataset(test_data, look_back)
+        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+        
+        # Make predictions
+        predictions = lstm_model.predict(X_test)
+        
+        # Inverse transform the predictions and actual values
+        predictions = scaler.inverse_transform(predictions)
+        y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
+
+        # Create plot
+        fig_val = go.Figure()
+        
+        test_dates = df['Date'].iloc[training_data_len:].iloc[look_back:]
+
+        fig_val.add_trace(go.Scatter(
+            x=test_dates,
+            y=y_test.flatten(),
+            mode='lines',
+            name='Actual Price',
+            line=dict(color='orange', width=2)
+        ))
+
+        fig_val.add_trace(go.Scatter(
+            x=test_dates,
+            y=predictions.flatten(),
+            mode='lines',
+            name='Predicted Price',
+            line=dict(color='blue', width=2)
+        ))
+        
+        fig_val.update_layout(
+            title="Model Validation: Actual vs. Predicted Prices",
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_dark",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
+            hovermode='x unified',
+            showlegend=True
+        )
+        st.plotly_chart(fig_val, use_container_width=True)
+
+
         # --- Future Price Prediction ---
         st.subheader(f"Future Price Prediction for the Next {future_days} Days")
         
@@ -179,67 +233,6 @@ if st.sidebar.button("Run Prediction"):
             "Predicted_Close": future_predictions
         })
         st.dataframe(prediction_df, use_container_width=True)
-
-        # --- Historical and Future Price Prediction Graph ---
-        st.subheader(f"{selected_ticker} Prices Prediction")
-        
-        # Create a single clean plot
-        fig = go.Figure()
-
-        # Add the historical trace
-        fig.add_trace(go.Scatter(
-            x=df['Date'],
-            y=df['Close'],
-            mode='lines',
-            name='Actual Price',
-            line=dict(color='#1f77b4', width=2)
-        ))
-
-        # Add the predicted future trace
-        # Connect the last actual price to the first predicted price
-        combined_dates = [df['Date'].iloc[-1]] + prediction_df['Date'].tolist()
-        combined_prices = [df['Close'].iloc[-1]] + prediction_df['Predicted_Close'].tolist()
-        
-        fig.add_trace(go.Scatter(
-            x=combined_dates,
-            y=combined_prices,
-            mode='lines+markers',
-            name='Predicted Price',
-            line=dict(color='#ff7f0e', width=2, dash='dot'),
-            marker=dict(size=4)
-        ))
-
-        # Update the layout to match the requested image
-        fig.update_layout(
-            title=f"{selected_ticker} Prices Prediction",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            template="plotly_dark",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            margin=dict(l=40, r=40, t=60, b=40),
-            hovermode='x unified',
-            showlegend=True
-        )
-
-        # Customize x-axis to show dates properly
-        fig.update_xaxes(
-            tickformat="%Y-%m-%d",
-            tickangle=45,
-            showgrid=True
-        )
-        
-        # Customize y-axis
-        fig.update_yaxes(
-            showgrid=True
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
