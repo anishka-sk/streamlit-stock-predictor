@@ -196,7 +196,7 @@ if st.sidebar.button("Run Prediction"):
             y=df['Close'],
             mode='lines',
             name='Historical Close',
-            line=dict(color='blue')
+            line=dict(color='blue', width=2)
         ))
 
         # Add the predicted future trace
@@ -209,8 +209,17 @@ if st.sidebar.button("Run Prediction"):
             y=combined_pred_prices,
             mode='lines+markers',
             name=f'Predicted Future ({future_days} Days)',
-            line=dict(color='red', dash='dash'),
-            marker=dict(size=5)
+            line=dict(color='red', width=2, dash='dash'),
+            marker=dict(size=6)
+        ))
+
+        # Add a marker at the transition point
+        fig.add_trace(go.Scatter(
+            x=[df['Date'].iloc[-1]],
+            y=[df['Close'].iloc[-1]],
+            mode='markers',
+            name='Prediction Start',
+            marker=dict(color='yellow', size=10, symbol='diamond')
         ))
 
         # Update the layout to match the requested image
@@ -226,7 +235,14 @@ if st.sidebar.button("Run Prediction"):
                 xanchor="right",
                 x=1
             ),
-            margin=dict(l=40, r=40, t=40, b=40)
+            margin=dict(l=40, r=40, t=60, b=40),
+            hovermode='x unified'
+        )
+
+        # Customize x-axis to show dates properly
+        fig.update_xaxes(
+            tickformat="%b %d, %Y",
+            tickangle=45
         )
 
         st.plotly_chart(fig, use_container_width=True)
