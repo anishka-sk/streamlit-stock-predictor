@@ -168,18 +168,31 @@ if st.sidebar.button("Run Prediction"):
         })
         st.dataframe(prediction_df, use_container_width=True)
 
-        # --- Historical Price Graph ---
+        # --- Historical Price Graph (from image) ---
         st.subheader("Historical Stock Price")
         fig_hist = go.Figure()
         fig_hist.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
         fig_hist.update_layout(title=f"{selected_ticker} Historical Close Price", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
         st.plotly_chart(fig_hist, use_container_width=True)
 
-        # --- Future Prediction Graph ---
+        # --- Future Prediction Graph (from image) ---
         st.subheader("Historical and Future Price Prediction")
+        
+        # Create a continuous date range for the plot
+        full_date_range = pd.date_range(start=df['Date'].iloc[0], end=prediction_df['Date'].iloc[-1])
+        full_df = pd.DataFrame(index=full_date_range)
+        
+        # Merge historical data
+        full_df = full_df.merge(df.set_index('Date')['Close'], how='left', left_index=True, right_index=True)
+        full_df = full_df.rename(columns={'Close': 'Historical_Close'})
+
+        # Merge future predictions
+        full_df = full_df.merge(prediction_df.set_index('Date')['Predicted_Close'], how='left', left_index=True, right_index=True)
+        
         fig_future = go.Figure()
-        fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
-        fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines+markers', name='Predicted Future', line=dict(dash='dash', color='orange')))
+        fig_future.add_trace(go.Scatter(x=full_df.index, y=full_df['Historical_Close'], mode='lines', name='Historical Close'))
+        fig_future.add_trace(go.Scatter(x=full_df.index, y=full_df['Predicted_Close'], mode='lines', name='Predicted Future', line=dict(dash='dash', color='orange')))
+        
         fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
         st.plotly_chart(fig_future, use_container_width=True)
 
