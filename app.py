@@ -84,6 +84,7 @@ if st.sidebar.button("Run Prediction"):
 
     if df is not None and not df.empty:
         df = df.reset_index()
+        df['Date'] = pd.to_datetime(df['Date'])
         
         required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
         available_columns = [col for col in required_columns if col in df.columns]
