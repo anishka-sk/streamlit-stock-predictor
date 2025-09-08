@@ -184,16 +184,49 @@ if st.sidebar.button("Run Prediction"):
         # --- Historical and Future Price Prediction Graph ---
         st.subheader("Historical and Future Price Prediction")
         
-        fig_future = go.Figure()
-        
-        # Historical Trace
-        fig_future.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Historical Close'))
-        
-        # Future Prediction Trace
-        fig_future.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted_Close'], mode='lines', name=f'Predicted Future ({future_days} Days)', line=dict(dash='dash', color='orange')))
-        
-        fig_future.update_layout(title=f"{selected_ticker} Historical and Future Prediction", xaxis_title="Date", yaxis_title="Stock Price", template="plotly_dark")
-        st.plotly_chart(fig_future, use_container_width=True)
+        # Create a single plot
+        fig = go.Figure()
+
+        # Add the historical trace
+        fig.add_trace(go.Scatter(
+            x=df['Date'],
+            y=df['Close'],
+            mode='lines',
+            name='Historical Close',
+            line=dict(color='blue')
+        ))
+
+        # Add the predicted future trace
+        # Start the predicted line from the last historical point
+        combined_pred_dates = [df['Date'].iloc[-1]] + prediction_df['Date'].tolist()
+        combined_pred_prices = [df['Close'].iloc[-1]] + prediction_df['Predicted_Close'].tolist()
+
+        fig.add_trace(go.Scatter(
+            x=combined_pred_dates,
+            y=combined_pred_prices,
+            mode='lines+markers',
+            name=f'Predicted Future ({future_days} Days)',
+            line=dict(color='red', dash='dash'),
+            marker=dict(size=5)
+        ))
+
+        # Update the layout to match the requested image
+        fig.update_layout(
+            title=f"{selected_ticker} - Next {future_days} Days Prediction",
+            xaxis_title="Date",
+            yaxis_title="Stock Price",
+            template="plotly_dark",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
+            margin=dict(l=40, r=40, t=40, b=40)
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.error("No data found for the selected ticker. Please try a different one.")
